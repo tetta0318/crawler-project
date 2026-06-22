@@ -1,32 +1,35 @@
 package crawler;
 
-import java.nio.file.Files;
+import java.io.IOException;
 import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.security.NoSuchAlgorithmException;
 
 public class  PathResolver{
-  Path outputDir;
-  Path targetDir;
-  String resourceType;
+  Path htmlDir;
   
-  public PathResolver(String resourceType){
-    this.outputDir  = Paths.get("output");
-    this.resourceType = resourceType;
-    this.targetDir = outputDir.resolve(resourceType);
-    try{
-      Files.createDirectories(outputDir);
-      Files.createDirectories(targetDir);
-    }catch(Exception e){
-      e.printStackTrace();
-    }
+  public PathResolver(Path htmlDir){
+    this.htmlDir = htmlDir;
   }
-  
-  Path returnTargetPath(){
+
+  public Path getResourceDir(String resourceType) throws IOException{
+    Path targetDir = htmlDir.resolve(resourceType);
+    DirCreater.createDir(targetDir);
     return targetDir;
   }
   
-  String genLocalFileName(int counter, String fileExtention){
-    return resourceType + "_" + counter + "." + fileExtention;
+  Path getTargetPath(Path targetDirPath, String fileName){
+    return targetDirPath.resolve(fileName);
+  }
+  
+  String getReferencePath(Path path){
+    return htmlDir.relativize(path).toString();
+  }
+  
+  String getFileName(String url, String fileExtention) throws NoSuchAlgorithmException{
+    return UrlUtils.hashUrl(url) + fileExtention;
   }
 
+  static String toSafeName(String name){
+    return name.replaceAll("[\\\\/:*?\"<>|]", "_");
+  }
 }

@@ -1,3 +1,4 @@
+/*
 package crawler;
 
 import java.nio.file.Files;
@@ -5,12 +6,10 @@ import java.nio.file.Path;
 import java.util.regex.Matcher;
 
 public class CssResourceExtractor {
-  ResourceCounter counter;
   Path cssPath;
 
-  public CssResourceExtractor(Path cssPath, ResourceCounter counter){
+  public CssResourceExtractor(Path cssPath){
     this.cssPath = cssPath;
-    this.counter = counter;
   }
 
   public void getImages(){
@@ -37,3 +36,4 @@ public class CssResourceExtractor {
     }
   } 
 }
+*/

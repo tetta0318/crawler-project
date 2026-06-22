@@ -8,36 +8,30 @@ import org.jsoup.select.Elements;
 
 public class HtmlResourceExtractor {
   Document doc;
-  String resourceType;
-  ResourceCounter counter;
+  ResourceDownloader downloader;
   
-  public HtmlResourceExtractor(Document doc){
+  public HtmlResourceExtractor(Document doc, ResourceDownloader downloader){
     this.doc = doc;
-    this.counter = new ResourceCounter();
+    this.downloader = downloader;
+  }
+
+  public String getTitle(){
+    return doc.title();
   }
 
   public Document getStyleSheet(){
-    resourceType = "css";
-
     try{
-      System.out.println("StyleSheetを抽出");
+      Logger.info("スタイルシートを抽出");
       Elements linkTags = doc.select("link[rel=stylesheet]");
 
       for(Element link : linkTags){
         String cssUrlStr = link.absUrl("href");
 
-        System.out.println("cssダウンロード中:" + cssUrlStr);
-
-        //リソースのダウンロード
-        ResourceDownloader rd = new ResourceDownloader(cssUrlStr, resourceType, counter.nextCss());
         //ダウンロードの実行．返り値はローカルに保存したファイル名
-        String fileName = rd.Downloader();
-
-        //CSS内の画像もダウンロード
-        CssResourceExtractor cre = new CssResourceExtractor(rd.getDownloadedPath(), counter);
-        cre.getImages();
+        String cssPath = downloader.download(cssUrlStr, "css");
+        //
         //htmlの書き換え
-        link.attr("href", "css/" + fileName);
+        link.attr("href", cssPath);
       }
     } catch(Exception e){
       e.printStackTrace();
@@ -47,21 +41,18 @@ public class HtmlResourceExtractor {
   }
   
   public Document getImages(){
-    resourceType = "img";
     try{
-      System.out.println("画像を抽出");
+      Logger.info("画像を抽出");
       Elements imgTags = doc.select("img");
 
       for(Element img : imgTags){
         String imgUrlStr = img.absUrl("src");
         //imgUrlがからの時と#が含まれているときスキップ
         if(imgUrlStr.isEmpty() || imgUrlStr.contains("#")) continue;
-        System.out.println("画像ダウンロード中:" + imgUrlStr);
 
-        ResourceDownloader rd = new ResourceDownloader(imgUrlStr, resourceType, counter.nextImg());
-        String fileName = rd.Downloader();
+        String imgPath = downloader.download(imgUrlStr, "img");
 
-        img.attr("src", "img/" + fileName);
+        img.attr("src", imgPath);
       }
     }catch(Exception e){
       e.printStackTrace();
@@ -70,20 +61,17 @@ public class HtmlResourceExtractor {
   }
   
   public Document getScripts(){
-    resourceType = "js";
     try{
-      System.out.println("JavaScriptを抽出");
+      Logger.info("JavaScriptを抽出");
       Elements scriptsTags = doc.select("script[src]");
 
       for(Element script : scriptsTags){
         String jsUrlStr = script.absUrl("src");
 
-        System.out.println("JavaScriptダウンロード中:" +  jsUrlStr);
 
-        ResourceDownloader rd = new ResourceDownloader(jsUrlStr, resourceType, counter.nextJs());
-        String fileName = rd.Downloader();
+        String jsPath = downloader.download(jsUrlStr, "js");
 
-        script.attr("src", "js/" + fileName);
+        script.attr("src", jsPath);
       }
     } catch(Exception e){
       e.printStackTrace();
@@ -93,9 +81,8 @@ public class HtmlResourceExtractor {
   
   //background-imageを取得
   public Document getBackgroundImages(){
-    resourceType = "img";
     try{
-      System.out.println("background-imageを抽出");
+      Logger.info("background-imageを抽出");
       Elements styledElements = doc.select("[style]");
 
       for(Element element : styledElements){
@@ -104,13 +91,11 @@ public class HtmlResourceExtractor {
         Matcher matcher = UrlUtils.findCssUrl(style);
         while(matcher.find()){
           String imgUrlStr = matcher.group(1);
-          System.out.println();
-          System.out.println(imgUrlStr);
-          System.out.println("background-imageダウンロード中:" + imgUrlStr);
 
-          ResourceDownloader rd = new ResourceDownloader(imgUrlStr, resourceType, counter.nextImg());
-          String fileName = rd.Downloader();
-          element.attr("style", style.replace(imgUrlStr, "img/" + fileName));
+          String imgPath = downloader.download(imgUrlStr, "img");
+
+          style = style.replace(imgUrlStr, imgPath);
+          element.attr("style", style);
         }
       }
     } catch(Exception e){
@@ -118,4 +103,10 @@ public class HtmlResourceExtractor {
     }
     return doc;
   }
+
+
+  public Document returnDoc(){
+    return doc;
+  }
+
 }
