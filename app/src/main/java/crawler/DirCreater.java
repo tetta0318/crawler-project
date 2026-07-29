@@ -5,7 +5,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
-public class DirCreater {
+public final class DirCreater {
+  //静的メソッドしか持たないのでインスタンス化させない
+  private DirCreater(){}
+
   public static Path createDir(String dirName) throws IOException{
     Path dirPath = Paths.get(dirName);
     Files.createDirectories(dirPath);
