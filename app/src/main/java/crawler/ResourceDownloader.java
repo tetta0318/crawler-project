@@ -10,8 +10,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 
 public class ResourceDownloader{
-  Path resourceDir; //出力するディレクトリ
-  PathResolver resolver; 
+  PathResolver resolver;
   DownloadManager manager;
   
   private final String userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36";
@@ -33,12 +32,6 @@ public class ResourceDownloader{
       System.out.println("");
       return resolver.getReferencePath(manager.getTargetPath(targetUrlStr));
     }
-    //ディレクトリの作成
-    try {
-      resourceDir = resolver.getResourceDir(resourceType);
-    } catch (IOException e) {
-      Logger.error("ディレクトリの作成に失敗しました");
-    }
 
     try {
       //接続
@@ -48,7 +41,7 @@ public class ResourceDownloader{
       
       //ファイル名とPathの決定
       String fileName = resolver.getFileName(targetUrlStr, getContentType(connection));
-      Path targetPath = resolver.getTargetPath(resourceDir, fileName);
+      Path targetPath = resolver.getTargetPath(resolver.getResourceDir(resourceType), fileName);
       
       Logger.download(resourceType, targetUrlStr);
       

@@ -1,11 +1,13 @@
 package crawler;
 
+import org.jspecify.annotations.NonNull;
+
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
 public class CrawlerMain {
-  public static void main(String[] args){
+  public static void main(String @NonNull [] args){
     String targetUrlStr = args[0];
     Path outputRoot;
     
