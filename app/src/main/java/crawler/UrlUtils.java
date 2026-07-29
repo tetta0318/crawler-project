@@ -8,16 +8,25 @@ import java.security.NoSuchAlgorithmException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class UrlUtils {
+public final class UrlUtils {
+  //静的メソッドしか持たないのでインスタンス化させない
+  private UrlUtils(){}
+
+  //urlから拡張子を取り出す．取り出せなければ空文字を返す．
   public static String extractFileExtension(String urlStr){
     try{
       URL url = new URI(urlStr).toURL();
       String path = url.getPath();
 
-      return path.substring(path.lastIndexOf(".") + 1);
+      int dotIndex = path.lastIndexOf(".");
+      int slashIndex = path.lastIndexOf("/");
+
+      //ドットが無い，ドットが最後のスラッシュより前にある(例:example.com/img)，
+      //ドットで終わっている場合は拡張子とみなさない
+      if(dotIndex < 0 || dotIndex < slashIndex || dotIndex == path.length() - 1) return "";
+
+      return path.substring(dotIndex + 1);
     } catch (Exception e) {
-      System.out.println("拡張子の抽出に失敗:" + urlStr);
-      e.printStackTrace();
       return "";
     }
   }

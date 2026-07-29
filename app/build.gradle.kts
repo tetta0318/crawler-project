@@ -29,7 +29,7 @@ dependencies {
 // Apply a specific Java toolchain to ease working on different environments.
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(17)
+        languageVersion = JavaLanguageVersion.of(21)
     }
 }
 
@@ -45,4 +45,18 @@ tasks.named<Test>("test") {
 
 tasks.withType<JavaCompile> {
     options.encoding = "UTF-8"
+}
+
+// JDK 18 以降、file.encoding は常に UTF-8 (JEP 400) になったが、
+// System.out/System.err が使うのは stdout.encoding / stderr.encoding で、
+// これらは OS 既定のまま (Windows/日本語なら MS932)。
+// 明示しないとコンソール出力が MS932 で書き出されて文字化けする。
+tasks.withType<JavaExec> {
+    defaultCharacterEncoding = "UTF-8"
+    jvmArgs("-Dstdout.encoding=UTF-8", "-Dstderr.encoding=UTF-8")
+}
+
+tasks.withType<Test> {
+    defaultCharacterEncoding = "UTF-8"
+    jvmArgs("-Dstdout.encoding=UTF-8", "-Dstderr.encoding=UTF-8")
 }

@@ -1,5 +1,9 @@
 package crawler;
 
+import java.io.IOException;
+import java.nio.file.Path;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.regex.Matcher;
 
 import org.jsoup.nodes.Document;
@@ -7,103 +11,128 @@ import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
 public class HtmlResourceExtractor {
-  Document doc;
-  ResourceDownloader downloader;
-  
-  public HtmlResourceExtractor(Document doc, ResourceDownloader downloader){
+  private final Document doc;
+  private final PathResolver resolver;
+  private final DownloadManager manager;
+  //このページで新しくダウンロードするリソースの url -> 保存先ローカルパス
+  private final Map<String, Path> downloadTasks = new LinkedHashMap<>();
+
+  public HtmlResourceExtractor(Document doc, PathResolver resolver, DownloadManager manager){
     this.doc = doc;
-    this.downloader = downloader;
+    this.resolver = resolver;
+    this.manager = manager;
   }
 
   public String getTitle(){
     return doc.title();
   }
 
-  public Document getStyleSheet(){
-    try{
-      Logger.info("スタイルシートを抽出");
-      Elements linkTags = doc.select("link[rel=stylesheet]");
+  public void getStyleSheet(){
+    Logger.info("スタイルシートを抽出");
+    Elements linkTags = doc.select("link[rel=stylesheet]");
 
-      for(Element link : linkTags){
-        String cssUrlStr = link.absUrl("href");
+    for(Element link : linkTags){
+      String cssUrlStr = link.absUrl("href");
 
-        //ダウンロードの実行．返り値はローカルに保存したファイル名
-        String cssPath = downloader.download(cssUrlStr, "css");
-        //
-        //htmlの書き換え
-        link.attr("href", cssPath);
-      }
-    } catch(Exception e){
-      e.printStackTrace();
+      //保存先を決める．返り値はhtmlから見た相対パス
+      String cssPath = resolve(cssUrlStr, "css");
+      if(cssPath == null) continue;
+
+      //htmlの書き換え
+      link.attr("href", cssPath);
     }
-    
-    return doc;
   }
-  
-  public Document getImages(){
-    try{
-      Logger.info("画像を抽出");
-      Elements imgTags = doc.select("img");
 
-      for(Element img : imgTags){
-        String imgUrlStr = img.absUrl("src");
-        //imgUrlがからの時と#が含まれているときスキップ
-        if(imgUrlStr.isEmpty() || imgUrlStr.contains("#")) continue;
+  public void getImages(){
+    Logger.info("画像を抽出");
+    Elements imgTags = doc.select("img");
 
-        String imgPath = downloader.download(imgUrlStr, "img");
+    for(Element img : imgTags){
+      String imgUrlStr = img.absUrl("src");
 
-        img.attr("src", imgPath);
-      }
-    }catch(Exception e){
-      e.printStackTrace();
+      String imgPath = resolve(imgUrlStr, "img");
+      if(imgPath == null) continue;
+
+      img.attr("src", imgPath);
     }
-    return doc;
+
   }
-  
-  public Document getScripts(){
-    try{
-      Logger.info("JavaScriptを抽出");
-      Elements scriptsTags = doc.select("script[src]");
 
-      for(Element script : scriptsTags){
-        String jsUrlStr = script.absUrl("src");
+  public void getScripts(){
+    Logger.info("JavaScriptを抽出");
+    Elements scriptsTags = doc.select("script[src]");
 
+    for(Element script : scriptsTags){
+      String jsUrlStr = script.absUrl("src");
 
-        String jsPath = downloader.download(jsUrlStr, "js");
+      String jsPath = resolve(jsUrlStr, "js");
+      if(jsPath == null) continue;
 
-        script.attr("src", jsPath);
-      }
-    } catch(Exception e){
-      e.printStackTrace();
+      script.attr("src", jsPath);
     }
-    return doc;
   }
-  
+
   //background-imageを取得
-  public Document getBackgroundImages(){
-    try{
-      Logger.info("background-imageを抽出");
-      Elements styledElements = doc.select("[style]");
+  public void getBackgroundImages(){
+    Logger.info("background-imageを抽出");
+    Elements styledElements = doc.select("[style]");
 
-      for(Element element : styledElements){
-        String style = element.attr("style");
+    for(Element element : styledElements){
+      String style = element.attr("style");
 
-        Matcher matcher = UrlUtils.findCssUrl(style);
-        while(matcher.find()){
-          String imgUrlStr = matcher.group(1);
+      Matcher matcher = UrlUtils.findCssUrl(style);
+      while(matcher.find()){
+        String imgUrlStr = matcher.group(1);
 
-          String imgPath = downloader.download(imgUrlStr, "img");
+        String imgPath = resolve(imgUrlStr, "img");
+        if(imgPath == null) continue;
 
-          style = style.replace(imgUrlStr, imgPath);
-          element.attr("style", style);
-        }
+        style = style.replace(imgUrlStr, imgPath);
+        element.attr("style", style);
       }
-    } catch(Exception e){
-      e.printStackTrace();
     }
-    return doc;
   }
 
+  //urlの保存先を決めてダウンロードタスクに積み，htmlから見た相対パスを返す．
+  //ダウンロードする必要がないurlならnullを返す．
+  private String resolve(String urlStr, String resourceType){
+    if(!isDownloadable(urlStr)) return null;
+
+    //既に保存先を決めてあるリソースは，そのファイルを使い回す
+    if(manager.isDownloaded(urlStr)){
+      return resolver.getReferencePath(manager.getTargetPath(urlStr));
+    }
+
+    Path resourceDir;
+    try {
+      resourceDir = resolver.getResourceDir(resourceType);
+    } catch (IOException e) {
+      Logger.error("ディレクトリの作成に失敗しました:" + resourceType);
+      return null;
+    }
+
+    //ファイル名とPathの決定
+    String fileName = resolver.getFileName(urlStr, resourceType);
+    Path targetPath = resolver.getTargetPath(resourceDir, fileName);
+
+    // DownloadedMapとtaskに追加
+    manager.putDownloadedMap(urlStr, targetPath);
+    downloadTasks.put(urlStr, targetPath);
+
+    return resolver.getReferencePath(targetPath);
+  }
+
+  private boolean isDownloadable(String urlStr){
+    //urlが空の時と#が含まれているとき，データが直接埋め込まれているときはスキップ
+    if(urlStr == null || urlStr.isEmpty()) return false;
+    if(urlStr.contains("#")) return false;
+    return !urlStr.startsWith("data:");
+  }
+
+  //抽出したダウンロード対象．スレッドはこれを受け取って順にダウンロードする
+  public Map<String, Path> getDownloadTasks(){
+    return downloadTasks;
+  }
 
   public Document returnDoc(){
     return doc;
