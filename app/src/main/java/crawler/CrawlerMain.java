@@ -11,7 +11,7 @@ import java.util.concurrent.TimeUnit;
 
 public class CrawlerMain {
   //リソースをダウンロードするスレッドの数
-  private static final int THREAD_COUNT = 50;
+  private static final int THREAD_COUNT = 16;
 
   public static void main(String @NonNull [] args){
     String targetUrlStr = args[0];
@@ -23,6 +23,7 @@ public class CrawlerMain {
       DirCreater.createDir(outputRoot);
     } catch (IOException e) {
       Logger.error("ディレクトリが作成できませんでした");
+      return;
     }
 
     ExecutorService pool = Executors.newFixedThreadPool(THREAD_COUNT);
